@@ -1,13 +1,112 @@
-"use client";
-// Add useEffect to initialize visualization on mount
-  useEffect(() => {
-    // TODO: Replace with actual star data and visualization logic
-    // For now, just set loading to false after a short delay to simulate data load
-    setTimeout(() => {
-      setLoading(false);
-      setStarCount(10); // Simulate 10 stars loaded
-    }, 1000);
-  }, []);
+"use client"
+// Sample star data generator
+function generateSampleStarData(): StarData[] {
+  // Add some famous stars with real data
+  const famousStars = [
+    { name: "Sirius", ra: 6.75, dec: -16.72, mag: -1.46, bv: 0.00, spectralClass: "A1V" },
+    { name: "Canopus", ra: 6.4, dec: -52.7, mag: -0.74, bv: 0.15, spectralClass: "A9II" },
+    { name: "Arcturus", ra: 14.26, dec: 19.18, mag: -0.05, bv: 1.23, spectralClass: "K1.5III" },
+    { name: "Vega", ra: 18.62, dec: 38.78, mag: 0.03, bv: 0.00, spectralClass: "A0V" },
+    { name: "Capella", ra: 5.28, dec: 45.99, mag: 0.08, bv: 0.80, spectralClass: "G5III" },
+    { name: "Rigel", ra: 5.24, dec: -8.20, mag: 0.13, bv: -0.03, spectralClass: "B8Iae" },
+    { name: "Procyon", ra: 7.65, dec: 5.23, mag: 0.34, bv: 0.42, spectralClass: "F5IV-V" },
+    { name: "Betelgeuse", ra: 5.92, dec: 7.41, mag: 0.50, bv: 1.85, spectralClass: "M1-2Ia-Iab" },
+    { name: "Achernar", ra: 1.63, dec: -57.24, mag: 0.46, bv: -0.19, spectralClass: "B6Vep" },
+    { name: "Altair", ra: 19.85, dec: 8.87, mag: 0.77, bv: 0.22, spectralClass: "A7V" }
+  ];
+  // Generate additional random stars
+  const sampleStars: StarData[] = [...famousStars];
+  for (let i = 0; i < 100; i++) {
+    sampleStars.push({
+      id: i + famousStars.length,
+      name: `Star-${i}`,
+      ra: Math.random() * 24,
+      dec: (Math.random() - 0.5) * 180,
+      mag: Math.random() * 8 - 1,
+      bv: (Math.random() - 0.3) * 2,
+      spectralClass: ['O', 'B', 'A', 'F', 'G', 'K', 'M'][Math.floor(Math.random() * 7)]
+    });
+  }
+  return sampleStars;
+}
+
+// Stub for Three.js visualization logic
+function createStarVisualization(data: StarData[]) {
+  // Find the mount node
+  const mount = document.querySelector('#cosmos-mount') as HTMLDivElement | null;
+  if (!mount) return;
+
+  // Clean up any previous renderers
+  while (mount.firstChild) mount.removeChild(mount.firstChild);
+
+  // Scene
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000011);
+
+  // Camera
+  const camera = new THREE.PerspectiveCamera(
+    75,
+    mount.clientWidth / mount.clientHeight,
+    0.1,
+    10000
+  );
+  camera.position.set(0, 0, 500);
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(mount.clientWidth, mount.clientHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  mount.appendChild(renderer.domElement);
+
+  // Star geometry
+  const starsGeometry = new THREE.BufferGeometry();
+  const positions = [];
+  const colors = [];
+  for (const star of data) {
+    // Convert RA/Dec to Cartesian (simple sphere, not accurate)
+    const raRad = (star.ra ?? 0) * 15 * (Math.PI / 180);
+    const decRad = (star.dec ?? 0) * (Math.PI / 180);
+    const r = 400 + Math.random() * 100;
+    const x = r * Math.cos(decRad) * Math.cos(raRad);
+    const y = r * Math.sin(decRad);
+    const z = r * Math.cos(decRad) * Math.sin(raRad);
+    positions.push(x, y, z);
+    // Color by spectral class (simple)
+    let color = new THREE.Color(1, 1, 1);
+    if (star.spectralClass) {
+      const type = star.spectralClass[0].toUpperCase();
+      if (type === 'O' || type === 'B') color = new THREE.Color(0.6, 0.8, 1.0);
+      else if (type === 'A' || type === 'F') color = new THREE.Color(1.0, 1.0, 1.0);
+      else if (type === 'G') color = new THREE.Color(1.0, 1.0, 0.7);
+      else if (type === 'K') color = new THREE.Color(1.0, 0.7, 0.4);
+      else if (type === 'M') color = new THREE.Color(1.0, 0.5, 0.3);
+    }
+    colors.push(color.r, color.g, color.b);
+  }
+  starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  starsGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+  // Star material
+  const starMaterial = new THREE.PointsMaterial({
+    size: 3,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85,
+    sizeAttenuation: true
+  });
+
+  // Points
+  const starPoints = new THREE.Points(starsGeometry, starMaterial);
+  scene.add(starPoints);
+
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+    starPoints.rotation.y += 0.0007;
+    renderer.render(scene, camera);
+  }
+  animate();
+}
 import { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 
@@ -26,8 +125,10 @@ interface StarData {
 }
 
 
+
 const CosmosVisualization: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
+  // Three.js refs (scene, renderer, camera, etc.)
   const sceneRef = useRef<THREE.Scene | undefined>(undefined);
   const rendererRef = useRef<THREE.WebGLRenderer | undefined>(undefined);
   const cameraRef = useRef<THREE.PerspectiveCamera | undefined>(undefined);
@@ -66,16 +167,31 @@ const CosmosVisualization: React.FC = () => {
     keys: {}
   });
 
+  // State for star data and UI
+  const [stars, setStars] = useState<StarData[]>([]);
   const [starCount, setStarCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [movementSpeed, setMovementSpeed] = useState(5);
   const [isFlying, setIsFlying] = useState(false);
-  
+  const [hoveredStar, setHoveredStar] = useState<StarData | null>(null);
+  // Three.js object refs
   const starsGroupRef = useRef<THREE.Group | undefined>(undefined);
   const raycasterRef = useRef<THREE.Raycaster | undefined>(undefined);
   const mouseRef = useRef<THREE.Vector2 | undefined>(undefined);
-  const [hoveredStar, setHoveredStar] = useState<StarData | null>(null);
+
+  // Load star data and initialize visualization
+  useEffect(() => {
+    // 1. Load star data
+    const data = generateSampleStarData();
+    setStars(data);
+    setLoading(false);
+
+    // 2. Initialize Three.js visualization
+    if (mountRef.current) {
+      createStarVisualization(data);
+    }
+  }, []);
 
 
   // Mouse event handlers
@@ -138,6 +254,7 @@ const CosmosVisualization: React.FC = () => {
     <div className="relative w-full h-screen bg-black overflow-hidden">
       {/* 3D Canvas */}
       <div 
+        id="cosmos-mount"
         ref={mountRef} 
         className="absolute inset-0 cursor-grab active:cursor-grabbing"
         onMouseDown={handleMouseDown}
