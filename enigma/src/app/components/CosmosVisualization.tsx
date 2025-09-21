@@ -1,3 +1,13 @@
+"use client";
+// Add useEffect to initialize visualization on mount
+  useEffect(() => {
+    // TODO: Replace with actual star data and visualization logic
+    // For now, just set loading to false after a short delay to simulate data load
+    setTimeout(() => {
+      setLoading(false);
+      setStarCount(10); // Simulate 10 stars loaded
+    }, 1000);
+  }, []);
 import { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 
